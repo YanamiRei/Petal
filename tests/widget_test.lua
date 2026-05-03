@@ -5,11 +5,15 @@ local widget
 function love.load()
 	widget = builder:build(builder:newScaffold({
 		bgColor = { 1.0, 1.0, 1.0, 1.0 },
-		child = builder:newButton({
-			text = "Hi",
-			onPress = function(self)
-				self.x = self.x + 10
-			end,
+		child = builder:newContainer({
+			x = 100,
+			y = 100,
+			child = builder:newButton({
+				text = "Hi",
+				onPress = function(self)
+					self.x = self.x + 10
+				end,
+			}),
 		}),
 	}))
 	widget:load()

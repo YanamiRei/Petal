@@ -12,6 +12,17 @@ local function adopt(widget, parent)
 	end
 end
 
+local function getAbsPos(widget)
+	local x, y = widget.x, widget.y
+	local p = widget.parent
+	while p do
+		x = x + (p.x or 0)
+		y = y + (p.y or 0)
+		p = p.parent
+	end
+	return x, y
+end
+
 function builder:build(root)
 	adopt(root, nil)
 	return root
@@ -22,6 +33,11 @@ function builder:newScaffold(args)
 	local scaffold = {}
 	scaffold.bgColor = args.bgColor or { 1.0, 1.0, 1.0, 1.0 }
 	scaffold.child = args.child or nil
+
+	scaffold.x = 0
+	scaffold.y = 0
+	scaffold.width = love.graphics.getWidth()
+	scaffold.height = love.graphics.getHeight()
 
 	function scaffold:load()
 		if scaffold.child then
@@ -45,8 +61,46 @@ function builder:newScaffold(args)
 	return scaffold
 end
 
-function builder:newButton(args)
+function builder:newContainer(args)
+	args = args or {}
+	local container = {}
+	container.x = args.x or 0
+	container.y = args.y or 0
+	container.color = args.color or { 0.0, 0.0, 0.0, 0.0 }
+	container.child = args.child or nil
 
+	function container:load()
+		self.width = args.width or self.parent.width
+		self.height = args.height or self.parent.height
+
+		if self.child then
+			self.child:load()
+		end
+	end
+
+	function container:update(dt)
+		if self.child then
+			self.child:update(dt)
+		end
+	end
+
+	function container:draw()
+		love.graphics.push()
+		love.graphics.translate(self.x, self.y)
+		love.graphics.setColor(unpack(self.color))
+		love.graphics.rectangle("fill", 0, 0, self.width, self.height)
+
+		if self.child then
+			self.child:draw()
+		end
+
+		love.graphics.pop()
+	end
+
+	return container
+end
+
+function builder:newButton(args)
 	args = args or {}
 	local button = {}
 
@@ -83,7 +137,8 @@ function builder:newButton(args)
 
 	function button:draw()
 		local mx, my = love.mouse.getPosition()
-		hot = mx > button.x and mx < button.x + button.width and my > button.y and my < button.y + button.height
+		local ax, ay = getAbsPos(self)
+		hot = mx > ax and mx < ax + button.width and my > ay and my < ay + button.height
 		local color
 		if button.active then
 			color = hot and button.hotColor or button.color
