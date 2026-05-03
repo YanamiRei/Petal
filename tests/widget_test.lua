@@ -1,21 +1,24 @@
-local scaffold = require("widgets.scaffold")
-local button = require("widgets.button")
-button.x = 100
-button.y = 100
-button.onPress = function()
-	button.x = button.x + 10
-end
+local builder = require("builder")
 
-scaffold.child = button
+local widget
 
 function love.load()
-	scaffold:load()
+	widget = builder:build(builder:newScaffold({
+		bgColor = { 1.0, 1.0, 1.0, 1.0 },
+		child = builder:newButton({
+			text = "Hi",
+			onPress = function(self)
+				self.x = self.x + 10
+			end,
+		}),
+	}))
+	widget:load()
 end
 
 function love.update(dt)
-	scaffold:update(dt)
+	widget:update(dt)
 end
 
 function love.draw()
-	scaffold:draw()
+	widget:draw()
 end
