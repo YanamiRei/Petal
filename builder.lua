@@ -13,7 +13,7 @@ local function adopt(widget, parent)
 end
 
 local function getAbsPos(widget)
-	local x, y = widget.x, widget.y
+	local x, y = 0, 0
 	local p = widget.parent
 	while p do
 		x = x + (p.x or 0)
@@ -33,28 +33,42 @@ function builder:newScaffold(args)
 	local scaffold = {}
 	scaffold.bgColor = args.bgColor or { 1.0, 1.0, 1.0, 1.0 }
 	scaffold.child = args.child or nil
-
 	scaffold.x = 0
 	scaffold.y = 0
-	scaffold.width = love.graphics.getWidth()
-	scaffold.height = love.graphics.getHeight()
+
+	local function applySize(self)
+		self.width = love.graphics.getWidth()
+		self.height = love.graphics.getHeight()
+		if self.child then
+			self.child.maxWidth = self.width
+			self.child.maxHeight = self.height
+		end
+	end
 
 	function scaffold:load()
-		if scaffold.child then
-			scaffold.child:load()
+		applySize(self)
+		if self.child then
+			self.child:load()
+		end
+	end
+
+	function scaffold:resize(w, h)
+		applySize(self)
+		if self.child then
+			self.child:resize(w, h)
 		end
 	end
 
 	function scaffold:update(dt)
-		if scaffold.child then
-			scaffold.child:update(dt)
+		if self.child then
+			self.child:update(dt)
 		end
 	end
 
 	function scaffold:draw()
-		love.graphics.setBackgroundColor(unpack(scaffold.bgColor))
-		if scaffold.child then
-			scaffold.child:draw()
+		love.graphics.setBackgroundColor(unpack(self.bgColor))
+		if self.child then
+			self.child:draw()
 		end
 	end
 
@@ -64,17 +78,39 @@ end
 function builder:newContainer(args)
 	args = args or {}
 	local container = {}
-	container.x = args.x or 0
-	container.y = args.y or 0
 	container.color = args.color or { 0.0, 0.0, 0.0, 0.0 }
 	container.child = args.child or nil
+	container.x = 0
+	container.y = 0
 
-	function container:load()
-		self.width = args.width or self.parent.width
-		self.height = args.height or self.parent.height
+	local function applySize(self)
+		self.width = args.width or self.maxWidth or self.parent.width
+		self.height = args.height or self.maxHeight or self.parent.height
+
+		if self.maxWidth then
+			self.width = math.min(self.width, self.maxWidth)
+		end
+		if self.maxHeight then
+			self.height = math.min(self.height, self.maxHeight)
+		end
 
 		if self.child then
+			self.child.maxWidth = self.width
+			self.child.maxHeight = self.height
+		end
+	end
+
+	function container:load()
+		applySize(self)
+		if self.child then
 			self.child:load()
+		end
+	end
+
+	function container:resize(w, h)
+		applySize(self)
+		if self.child then
+			self.child:resize(w, h)
 		end
 	end
 
@@ -89,11 +125,9 @@ function builder:newContainer(args)
 		love.graphics.translate(self.x, self.y)
 		love.graphics.setColor(unpack(self.color))
 		love.graphics.rectangle("fill", 0, 0, self.width, self.height)
-
 		if self.child then
 			self.child:draw()
 		end
-
 		love.graphics.pop()
 	end
 
@@ -114,17 +148,31 @@ function builder:newButton(args)
 	button.hotColor = args.hotColor or { 0.6, 0.6, 0.7, 1.0 }
 	button.inactiveColor = args.inactiveColor or { 0.2, 0.2, 0.3, 1.0 }
 	button.active = args.active or true
-	button.x = args.x or 0
-	button.y = args.y or 0
+	button.x = 0
+	button.y = 0
 
 	local font = nil
 	local currentMouseState
 	local lastMouseState
 	local hot = false
 
+	local function applySize(self)
+		if self.maxWidth then
+			self.width = math.min(self.width, self.maxWidth)
+		end
+		if self.maxHeight then
+			self.height = math.min(self.height, self.maxHeight)
+		end
+	end
+
 	function button:load()
-		font = love.graphics.newFont(button.fontSize)
+		font = love.graphics.newFont(self.fontSize)
 		currentMouseState = love.mouse.isDown(1)
+		applySize(self)
+	end
+
+	function button:resize(w, h)
+		applySize(self)
 	end
 
 	function button:update(dt)
@@ -138,27 +186,28 @@ function builder:newButton(args)
 	function button:draw()
 		local mx, my = love.mouse.getPosition()
 		local ax, ay = getAbsPos(self)
-		hot = mx > ax and mx < ax + button.width and my > ay and my < ay + button.height
+		hot = mx > ax and mx < ax + self.width and my > ay and my < ay + self.height
+
 		local color
-		if button.active then
-			color = hot and button.hotColor or button.color
+		if self.active then
+			color = hot and self.hotColor or self.color
 		else
-			color = button.inactiveColor
+			color = self.inactiveColor
 		end
 
+		love.graphics.push()
+		love.graphics.translate(self.x, self.y)
+
 		love.graphics.setColor(unpack(color))
-		love.graphics.rectangle("fill", button.x, button.y, button.width, button.height)
+		love.graphics.rectangle("fill", 0, 0, self.width, self.height)
 
-		local textH = font:getHeight(button.text)
-		local textW = font:getWidth(button.text)
+		local textH = font:getHeight(self.text)
+		local textW = font:getWidth(self.text)
 
-		love.graphics.setColor(unpack(button.textColor))
-		love.graphics.print(
-			button.text,
-			font,
-			button.x + (button.width * 0.5) - (textW * 0.5),
-			button.y + (button.height * 0.5) - (textH * 0.5)
-		)
+		love.graphics.setColor(unpack(self.textColor))
+		love.graphics.print(self.text, font, (self.width * 0.5) - (textW * 0.5), (self.height * 0.5) - (textH * 0.5))
+
+		love.graphics.pop()
 	end
 
 	return button
@@ -167,15 +216,25 @@ end
 function builder:newColumn(args)
 	args = args or {}
 	local Column = {}
-	Column.x = args.x or 0
-	Column.y = args.y or 0
+	Column.x = 0
+	Column.y = 0
 	Column.spacing = args.spacing or 0
 	Column.crossAxisAlignment = args.crossAxisAlignment or "start"
 	Column.children = args.children or {}
 
 	function Column:load()
 		for _, child in ipairs(self.children) do
+			child.maxWidth = self.maxWidth
+			child.maxHeight = self.maxHeight
 			child:load()
+		end
+	end
+
+	function Column:resize(w, h)
+		for _, child in ipairs(self.children) do
+			child.maxWidth = self.maxWidth
+			child.maxHeight = self.maxHeight
+			child:resize(w, h)
 		end
 	end
 
@@ -213,15 +272,25 @@ end
 function builder:newRow(args)
 	args = args or {}
 	local Row = {}
-	Row.x = args.x or 0
-	Row.y = args.y or 0
+	Row.x = 0
+	Row.y = 0
 	Row.spacing = args.spacing or 0
 	Row.crossAxisAlignment = args.crossAxisAlignment or "start"
 	Row.children = args.children or {}
 
 	function Row:load()
 		for _, child in ipairs(self.children) do
+			child.maxWidth = self.maxWidth
+			child.maxHeight = self.maxHeight
 			child:load()
+		end
+	end
+
+	function Row:resize(w, h)
+		for _, child in ipairs(self.children) do
+			child.maxWidth = self.maxWidth
+			child.maxHeight = self.maxHeight
+			child:resize(w, h)
 		end
 	end
 
